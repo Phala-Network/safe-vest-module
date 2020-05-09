@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "@gnosis.pm/safe-contracts": "^1.1.1-dev.2",
+    "@truffle/hdwallet-provider": "^1.0.35",
+    "dotenv": "^8.2.0",
+    "eth-lightwallet": "^4.0.0",
+    "ethereumjs-abi": "^0.6.8"
+  },
+  "resolutions": {
+    "bitcore-lib": "8.1.1"
+  }
+}
