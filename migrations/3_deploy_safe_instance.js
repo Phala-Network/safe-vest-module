@@ -13,41 +13,45 @@ const deployedConst = {
   }
 }
 
+const kDeploySafe = true;
+const kUseOrigin = false;
+
 async function getOrDeployOnNetwork(contract, deployer, network) {
   const name = contract.contractName;
   console.log('getOrDeploy ', name);
   const deployed = deployedConst[network];
   if (deployed && deployed[name]) {
-    console.log('getOrDeploy: returning deployed at', deployed[name]);
+    console.log('  returning deployed at', deployed[name]);
     return await contract.at(deployed[name]);
   }
-  console.log('getOrDeploy: deploying');
-  await deployer.deploy(contract);
+  if (kDeploySafe) {
+    console.log('  deploying');
+    await deployer.deploy(contract);
+  }
+  if (!kUseOrigin) {
+    console.log('  new instance');
+    const deployed = await contract.new();
+    let receipt = await web3.eth.getTransactionReceipt(deployed.transactionHash)
+    utils.logGasUsage('name', receipt);
+    return deployed;
+  }
+  console.log('  deployed');
   return await contract.deployed();
-}
-
-const utils = {
-  Address0: '0x0000000000000000000000000000000000000000',
 }
 
 module.exports = function(deployer, network, accounts) {
   const getOrDeploy = async (c) => { return await getOrDeployOnNetwork(c, deployer, network) };
   deployer.then(async () => {
-    await deployer.deploy(VestingModule);
-    const vestingModuleMasterCopy = await VestingModule.deployed();
-    await vestingModuleMasterCopy.setup([], []);
-
     // get the master copies of the system
     const proxyFactory = await getOrDeploy(GnosisSafeProxyFactory);
     const createAndAddModules = await getOrDeploy(CreateAndAddModules);
     const gnosisSafeMasterCopy = await getOrDeploy(GnosisSafe);
+    const vestingModuleMasterCopy = await getOrDeploy(VestingModule);
 
     // prepare module creation call
     const moduleData = await vestingModuleMasterCopy.contract.methods.setup([utils.Address0], [100]).encodeABI();
-    const proxyFactoryData = await proxyFactory.contract.methods
-      .createProxy(vestingModuleMasterCopy.address, moduleData).encodeABI();
-    const modulesCreationData = await createAndAddModules.contract.methods
-      .createAndAddModules(proxyFactory.address, processModulesData([proxyFactoryData])).encodeABI();
+    const proxyFactoryData = await proxyFactory.contract.methods.createProxy(vestingModuleMasterCopy.address, moduleData).encodeABI();
+    const modulesCreationData = utils.processModulesData([proxyFactoryData]);
     const createAndAddModulesData = await createAndAddModules.contract.methods.createAndAddModules(proxyFactory.address, modulesCreationData).encodeABI();
 
     // prepare craete module call
@@ -57,7 +61,7 @@ module.exports = function(deployer, network, accounts) {
     ).encodeABI();
 
     const tx = await proxyFactory.createProxy(gnosisSafeMasterCopy.address, gnosisSafeData);
-    const gnosisSafeAddress = getParamFromTxEvent(tx, 'ProxyCreation', 'proxy', proxyFactory.address);
+    const gnosisSafeAddress = utils.getParamFromTxEvent(tx, 'ProxyCreation', 'proxy', proxyFactory.address);
 
     const migration = await Migrations.deployed();
     await migration.setSafeAddress(gnosisSafeAddress);
@@ -67,16 +71,20 @@ module.exports = function(deployer, network, accounts) {
 // eslint-disable-next-line
 const ModuleDataWrapper = new web3.eth.Contract([{"constant":false,"inputs":[{"name":"data","type":"bytes"}],"name":"setup","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]);
 
-function processModulesData (dataArray) {
-  return dataArray.reduce((acc, data) => acc + ModuleDataWrapper.methods.setup(data).encodeABI().substr(74), "0x")
-}
-
-function getParamFromTxEvent(transaction, eventName, paramName, contract) {
-  // assert.isObject(transaction)
-  let logs = transaction.logs
-  if(eventName != null) {
-      logs = logs.filter((l) => l.event === eventName && l.address === contract)
+const utils = {
+  Address0: '0x0000000000000000000000000000000000000000',
+  processModulesData (dataArray) {
+    return dataArray.reduce((acc, data) => acc + ModuleDataWrapper.methods.setup(data).encodeABI().substr(74), "0x")
+  },
+  getParamFromTxEvent(transaction, eventName, paramName, contract) {
+    let logs = transaction.logs
+    if(eventName != null) {
+        logs = logs.filter((l) => l.event === eventName && l.address === contract)
+    }
+    return logs[0].args[paramName]
+  },
+  logGasUsage(subject, transactionOrReceipt) {
+    let receipt = transactionOrReceipt.receipt || transactionOrReceipt
+    console.log("    Gas costs for " + subject + ": " + receipt.gasUsed)
   }
-  // assert.equal(logs.length, 1, 'too many logs found!')
-  return logs[0].args[paramName]
-}
+};
