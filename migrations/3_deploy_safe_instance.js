@@ -17,6 +17,7 @@ const deployedConst = {
 
 const kDeploySafe = true;
 const kUseOrigin = false;
+const kVestStartTime = (((new Date()).getTime() / 1000) | 0) + 10;  // now + 10s
 
 async function getOrDeployOnNetwork(contract, deployer, network) {
   const name = contract.contractName;
@@ -51,7 +52,13 @@ module.exports = function(deployer, network, accounts) {
     const vestingModuleMasterCopy = await getOrDeploy(VestingModule);
 
     // prepare module creation call
-    const moduleData = await vestingModuleMasterCopy.contract.methods.setup([utils.Address0], [100]).encodeABI();
+    const moduleData = await vestingModuleMasterCopy.contract.methods.setup(
+      [utils.Address0], // token
+      [kVestStartTime], // start time
+      [10],   // interval
+      [100],  // amount
+      [accounts[0]]   // to
+    ).encodeABI();
     const proxyFactoryData = await proxyFactory.contract.methods.createProxy(vestingModuleMasterCopy.address, moduleData).encodeABI();
     const modulesCreationData = utils.processModulesData(web3, [proxyFactoryData]);
     const createAndAddModulesData = await createAndAddModules.contract.methods.createAndAddModules(proxyFactory.address, modulesCreationData).encodeABI();

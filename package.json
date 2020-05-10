@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@gnosis.pm/safe-contracts": "^1.1.1-dev.2",
+    "@openzeppelin/contracts": "^2.5.1",
     "@truffle/hdwallet-provider": "^1.0.35",
     "dotenv": "^8.2.0",
     "eth-lightwallet": "^4.0.0",
