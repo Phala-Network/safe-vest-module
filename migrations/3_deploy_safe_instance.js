@@ -1,3 +1,5 @@
+const utils = require('./../lib/utils');
+
 const VestingModule = artifacts.require("VestingModule");
 const Migrations = artifacts.require("Migrations");
 
@@ -51,7 +53,7 @@ module.exports = function(deployer, network, accounts) {
     // prepare module creation call
     const moduleData = await vestingModuleMasterCopy.contract.methods.setup([utils.Address0], [100]).encodeABI();
     const proxyFactoryData = await proxyFactory.contract.methods.createProxy(vestingModuleMasterCopy.address, moduleData).encodeABI();
-    const modulesCreationData = utils.processModulesData([proxyFactoryData]);
+    const modulesCreationData = utils.processModulesData(web3, [proxyFactoryData]);
     const createAndAddModulesData = await createAndAddModules.contract.methods.createAndAddModules(proxyFactory.address, modulesCreationData).encodeABI();
 
     // prepare craete module call
@@ -66,25 +68,4 @@ module.exports = function(deployer, network, accounts) {
     const migration = await Migrations.deployed();
     await migration.setSafeAddress(gnosisSafeAddress);
   });
-};
-
-// eslint-disable-next-line
-const ModuleDataWrapper = new web3.eth.Contract([{"constant":false,"inputs":[{"name":"data","type":"bytes"}],"name":"setup","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]);
-
-const utils = {
-  Address0: '0x0000000000000000000000000000000000000000',
-  processModulesData (dataArray) {
-    return dataArray.reduce((acc, data) => acc + ModuleDataWrapper.methods.setup(data).encodeABI().substr(74), "0x")
-  },
-  getParamFromTxEvent(transaction, eventName, paramName, contract) {
-    let logs = transaction.logs
-    if(eventName != null) {
-        logs = logs.filter((l) => l.event === eventName && l.address === contract)
-    }
-    return logs[0].args[paramName]
-  },
-  logGasUsage(subject, transactionOrReceipt) {
-    let receipt = transactionOrReceipt.receipt || transactionOrReceipt
-    console.log("    Gas costs for " + subject + ": " + receipt.gasUsed)
-  }
 };
