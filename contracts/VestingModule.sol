@@ -28,6 +28,8 @@ contract VestingModule is Module {
         uint256 numVestSent;
     }
 
+    event TransferVested(address token, uint256 amount, uint256 numVest, uint256 timestamp);
+
     /// @dev Setup function sets initial storage of contract.
     /// @param tokens List of token addresses. Ether is represented with address 0x0.
     /// @param startDates List of start date in unix timestamp.
@@ -89,10 +91,12 @@ contract VestingModule is Module {
         require(hasVest(token), "Vest plan not found");
         /* solium-disable-next-line security/no-block-members */
         uint256 timeNow = block.timestamp;
-
         Vest memory vest = vests[token];
+        if (timeNow < vest.startDate) {
+            // Not started yet
+            return 0;
+        }
         uint256 dt = timeNow - vest.startDate;
-        require(dt >= 0, "Bad blocktime");
         return 1 + dt / vest.interval;  // the first round happens right after it starts
     }
 
@@ -127,7 +131,10 @@ contract VestingModule is Module {
         uint256 availableToSend = numAvailable * vest.amount;
         uint256 balance = getBalance(token);
         uint256 amount = Math.min(balance, availableToSend);
+        require(amount > 0, "No available vest");
 
+        emit TransferVested(token, amount, numAvailable, block.timestamp);
+        vests[token].numVestSent += numAvailable;
         if (token == address(0)) {
             require(manager.execTransactionFromModule(to, amount, "", Enum.Operation.Call), "Could not execute ether transfer");
         } else {

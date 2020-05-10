@@ -17,7 +17,6 @@ const deployedConst = {
 
 const kDeploySafe = true;
 const kUseOrigin = false;
-const kVestStartTime = (((new Date()).getTime() / 1000) | 0) + 10;  // now + 10s
 
 async function getOrDeployOnNetwork(contract, deployer, network) {
   const name = contract.contractName;
@@ -51,11 +50,14 @@ module.exports = function(deployer, network, accounts) {
     const gnosisSafeMasterCopy = await getOrDeploy(GnosisSafe);
     const vestingModuleMasterCopy = await getOrDeploy(VestingModule);
 
+    const now = await utils.getBlockTimestamp(web3);
+    const vestStartTime = now + 600;  // 10 mins
+
     // prepare module creation call
     const moduleData = await vestingModuleMasterCopy.contract.methods.setup(
       [utils.Address0], // token
-      [kVestStartTime], // start time
-      [10],   // interval
+      [vestStartTime], // start time
+      [100],   // interval
       [100],  // amount
       [accounts[0]]   // to
     ).encodeABI();
