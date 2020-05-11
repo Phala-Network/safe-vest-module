@@ -47,7 +47,7 @@ module.exports = {
         return new HDWalletProvider(mnemonic, 'https://rinkeby.infura.io/v3/' + token)
       },
       network_id: '4',
-      gasPrice: 25000000000, // 25 Gwei
+      gasPrice: 10000000000, // 10 Gwei
       networkCheckTimeout: 30000,
       skipDryRun: true
     },

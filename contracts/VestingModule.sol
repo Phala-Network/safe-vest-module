@@ -28,6 +28,7 @@ contract VestingModule is Module {
         uint256 numVestSent;
     }
 
+    event VestAdded(address token, uint256 startDate, uint256 interval, uint256 amount, address to, uint256 timestamp);
     event TransferVested(address token, uint256 amount, uint256 numVest, uint256 timestamp);
 
     /// @dev Setup function sets initial storage of contract.
@@ -57,7 +58,8 @@ contract VestingModule is Module {
         authorized
     {
         /* solium-disable-next-line security/no-block-members */
-        require(startDate >= block.timestamp, "Start date shouldn't be earlier than now");
+        uint256 blocktime = block.timestamp;
+        require(startDate >= blocktime, "Start date shouldn't be earlier than now");
         require(interval > 0, "Vest interval mustn't be zero");
         require(amount > 0, "Vest amount mustn't be zero");
         require(to != address(0), "Invalid to address");
@@ -69,6 +71,8 @@ contract VestingModule is Module {
             to: to,
             numVestSent: 0
         });
+
+        emit VestAdded(token, startDate, interval, amount, to, blocktime);
     }
 
     function removeVest(address token)

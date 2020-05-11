@@ -40,6 +40,7 @@ const networkParams = {
 };
 
 function getParams(network) {
+  if (network.startsWith('rinkeby')) network = 'rinkeby';
   if (network in networkParams) {
     return networkParams[network];
   } else {
@@ -47,19 +48,18 @@ function getParams(network) {
   }
 }
 
-const kDeploySafe = true;
-const kUseOrigin = false;
+const kAllowDeploy = true;
+const kUseOrigin = true;
 
 async function getOrDeployOnNetwork(contract, deployer, network, contractName, args=[]) {
   const deployedAddress = getParams(network).deployedAddress;
   const name = contractName || contract.contractName;
-  console.log('getOrDeploy ', name);
-  const deployed = deployedAddress[network];
-  if (deployed && deployed[name]) {
-    console.log('  returning deployed at', deployed[name]);
-    return await contract.at(deployed[name]);
+  console.log('getOrDeploy:', name);
+  if (deployedAddress[name]) {
+    console.log('  returning deployed at', deployedAddress[name]);
+    return await contract.at(deployedAddress[name]);
   }
-  if (kDeploySafe) {
+  if (kAllowDeploy) {
     console.log('  deploying', args);
     await deployer.deploy(contract, ...args);
   }
@@ -82,11 +82,12 @@ module.exports = function(deployer, network, accounts) {
     const proxyFactory = await getOrDeploy(GnosisSafeProxyFactory);
     const createAndAddModules = await getOrDeploy(CreateAndAddModules);
     const gnosisSafeMasterCopy = await getOrDeploy(GnosisSafe);
-    const vestingModuleMasterCopy = await getOrDeploy(VestingModule);
+    const vestingModuleMasterCopy = await VestingModule.deployed();
     const usdtToken = await getOrDeploy(Token, 'USDT', [new BN(10000 * 1e6)]);
 
     // prepare module creation call
     const {startTime, interval, amount, to} = await params.vest({web3, accounts});
+    console.log('Setting vest:', {token: usdtToken.address, startTime, interval, amount, to});
     const moduleData = await vestingModuleMasterCopy.contract.methods.setup(
       [usdtToken.address],  // token
       [startTime],  // start time
