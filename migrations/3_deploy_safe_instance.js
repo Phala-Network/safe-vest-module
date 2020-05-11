@@ -10,12 +10,28 @@ const CreateAndAddModules = artifacts.require("@gnosis.pm/safe-contracts/CreateA
 const GnosisSafe = artifacts.require("@gnosis.pm/safe-contracts/GnosisSafe");
 
 const networkParams = {
+  mainnet: {
+    deployedAddress: {
+      GnosisSafeProxyFactory: '0x76E2cFc1F5Fa8F6a5b3fC4c8F4788F0116861F9B',
+      CreateAndAddModules: '0xF61A721642B0c0C8b334bA3763BA1326F53798C0',
+      GnosisSafe: '0x34CfAC646f301356fAa8B21e94227e3583Fe3F5F',
+      USDT: '0xdac17f958d2ee523a2206206994597c13d831ec7'
+    },
+    vest: async ({web3, accounts}) => {
+      return {
+        startTime: await utils.getBlockTimestamp(web3) + 600,
+        interval: 30 * 24 * 3600,  // 30 days
+        amount: new BN(1e6).muln(30000).toString(),  // 30,000 USDT (decimals: 6)
+        to: '0xb7687A5a3E7b49522705833Bf7D5bAf18AaBDD2d',  // Team wallet
+      }
+    },
+  },
   rinkeby: {
     deployedAddress: {
       GnosisSafeProxyFactory: '0x76E2cFc1F5Fa8F6a5b3fC4c8F4788F0116861F9B',
       CreateAndAddModules: '0xF61A721642B0c0C8b334bA3763BA1326F53798C0',
       GnosisSafe: '0x34CfAC646f301356fAa8B21e94227e3583Fe3F5F',
-      // USDT: '0xXXXXX'
+      // USDT: mock token
     },
     vest: async ({web3, accounts}) => {
       return {
@@ -40,7 +56,9 @@ const networkParams = {
 };
 
 function getParams(network) {
-  if (network.startsWith('rinkeby')) network = 'rinkeby';
+  if (network.endsWith('-fork')) {
+    network = network.replace('-fork', '');
+  }
   if (network in networkParams) {
     return networkParams[network];
   } else {
@@ -60,7 +78,7 @@ async function getOrDeployOnNetwork(contract, deployer, network, contractName, a
     return await contract.at(deployedAddress[name]);
   }
   if (kAllowDeploy) {
-    console.log('  deploying', args);
+    console.log('  deploying arg:', args);
     await deployer.deploy(contract, ...args);
   }
   if (!kUseOrigin) {
