@@ -30,6 +30,26 @@ contract('VestingModule', function(accounts) {
     await token.transfer(gnosisSafe.address, new BN(150));
   });
 
+  it('should set ether vest plan', async () => {
+    assert(!await vestingModule.hasVest(utils.Address0), 'No ether vest yet');
+    // Add vest plan (100 ether per 100s)
+    const now = await utils.getBlockTimestamp(web3);
+    const data = await vestingModule.contract.methods.setVest(
+      utils.Address0, now + 600, 100, 100, accounts[0]
+    ).encodeABI();
+    await executeTransaction(
+      'add a vest plan with token', [accounts[0]],
+      vestingModule.address, 0, data,
+      CALL
+    );
+    // Check vest plan added
+    assert(await vestingModule.hasVest(utils.Address0), 'Token vest added');
+    assert(
+      (await vestingModule.availableVest(utils.Address0)).eq(new BN(0)),
+      'Token vest not started'
+    );
+  });
+
   it('should revert when no vest available', async () => {
     await truffleAssert.reverts(
       vestingModule.execute(utils.Address0),
