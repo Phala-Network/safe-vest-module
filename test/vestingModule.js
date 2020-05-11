@@ -141,6 +141,13 @@ contract('VestingModule', function(accounts) {
     );
   })
 
+  it('should revert if call authorized methods', async () => {
+    await truffleAssert.reverts(
+      vestingModule.removeVest(utils.Address0),
+      'Method can only be called from manager.'
+    )
+  });
+
   const executor = accounts[0];
   async function executeTransaction(subject, accounts, to, value, data, operation, opts) {
     let options = opts || {}
